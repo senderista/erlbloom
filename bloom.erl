@@ -10,8 +10,7 @@
 %% @doc Starts the server process and returns the server pid.
 %% @end
 -spec init(integer(),float()) -> pid().
-init(MaxElements, MaxFalsePos) ->
-    % assert 0 < MaxFalsePos < 1
+init(MaxElements, MaxFalsePos) when (0 < MaxFalsePos) and (MaxFalsePos < 1) ->
     % The required number of bits m, given n (the number of inserted elements)
     % and a desired false positive probability p
     % (and assuming the optimal value of k is used) is
@@ -32,9 +31,9 @@ loop(BaseHashFunc, BaseHashLen, NumHashFuncs, BitArray) ->
     BitArrayLen = bit_size(BitArray),
     <<BitArrayVal:BitArrayLen>> = BitArray,
     SubHashLen = BaseHashLen div NumHashFuncs,
+    true = math:pow(2, SubHashLen) >= BitArrayLen,
     receive
         {From, {exists, Id, Key}} ->
-            true = math:pow(2, SubHashLen) >= BitArrayLen,
             <<BaseHash:BaseHashLen>> = BaseHashFunc(Key),
             SubHashes = lists:sublist([(SubHash rem BitArrayLen) || <<SubHash:SubHashLen>> <= <<BaseHash:BaseHashLen>>], NumHashFuncs),
             SubHashesMask = lists:foldl(fun(Elem, Acc) -> (1 bsl Elem) bor Acc end, 0, SubHashes),
@@ -45,7 +44,6 @@ loop(BaseHashFunc, BaseHashLen, NumHashFuncs, BitArray) ->
             end,
             loop(BaseHashFunc, BaseHashLen, NumHashFuncs, BitArray);
         {From, {add, Id, Key}} ->
-            true = math:pow(2, SubHashLen) >= BitArrayLen,
             <<BaseHash:BaseHashLen>> = BaseHashFunc(Key),
             SubHashes = lists:sublist([(SubHash rem BitArrayLen) || <<SubHash:SubHashLen>> <= <<BaseHash:BaseHashLen>>], NumHashFuncs),
             NewBitArrayVal = lists:foldl(fun(Elem, Acc) -> (1 bsl Elem) bor Acc end, BitArrayVal, SubHashes),
